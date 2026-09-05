@@ -21,9 +21,11 @@ st.write("The transcontinental trivia battle. Werribee vs. Guangzhou.")
 # Connect to Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+# Define the URL globally so all parts of the app can use it
+sheet_url = "https://docs.google.com/spreadsheets/d/17wg47-a_YxLoLs5dIN1us56qaK3s3CMVGNrr-FlEh6U/edit?gid=0#gid=0"
+
 # Read the data (ttl=0 ensures it doesn't cache, giving you real-time updates)
 try:
-    sheet_url = "https://docs.google.com/spreadsheets/d/17wg47-a_YxLoLs5dIN1us56qaK3s3CMVGNrr-FlEh6U/edit?gid=0#gid=0"
     df = conn.read(spreadsheet=sheet_url, worksheet="Trivia", ttl=0)
 except Exception as e:
     st.error(f"Database error: {e}")
@@ -67,8 +69,8 @@ if user != "Select...":
                         df.at[index, 'Guesser'] = user
                         df.at[index, 'Guessed_Answer'] = guess
                         
-                        # Update Google Sheet
-                        conn.update(worksheet="Trivia", data=df)
+                        # Update Google Sheet (FIXED: Added spreadsheet parameter)
+                        conn.update(spreadsheet=sheet_url, worksheet="Trivia", data=df)
                         st.rerun()
 
     # --- TAB 2: ASK A QUESTION ---
@@ -90,7 +92,10 @@ if user != "Select...":
                     'Status': 'Unanswered'
                 }])
                 df = pd.concat([df, new_row], ignore_index=True)
-                conn.update(worksheet="Trivia", data=df)
+                
+                # Update Google Sheet (FIXED: Added spreadsheet parameter)
+                conn.update(spreadsheet=sheet_url, worksheet="Trivia", data=df)
+                
                 st.success("Question submitted! It will be waiting for them next time they log in.")
                 st.rerun()
             else:
