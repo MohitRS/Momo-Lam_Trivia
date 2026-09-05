@@ -27,14 +27,15 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 sheet_url = "https://docs.google.com/spreadsheets/d/17wg47-a_YxLoLs5dIN1us56qaK3s3CMVGNrr-FlEh6U/edit?gid=0#gid=0"
 
 try:
-    df_trivia = conn.read(spreadsheet=sheet_url, worksheet="Trivia", ttl=0).fillna('').astype(str)
-    df_fridge = conn.read(spreadsheet=sheet_url, worksheet="Fridge", ttl=0).fillna('').astype(str)
-    df_vibe = conn.read(spreadsheet=sheet_url, worksheet="Vibe", ttl=0).fillna('').astype(str)
-    df_watch = conn.read(spreadsheet=sheet_url, worksheet="Watchlist", ttl=0).fillna('').astype(str)
-    df_bucket = conn.read(spreadsheet=sheet_url, worksheet="BucketList", ttl=0).fillna('').astype(str)
-    df_scores = conn.read(spreadsheet=sheet_url, worksheet="HighScores", ttl=0).fillna('').astype(str)
+    # TTL set to 15 seconds to prevent Google API rate limits!
+    df_trivia = conn.read(spreadsheet=sheet_url, worksheet="Trivia", ttl=15).fillna('').astype(str)
+    df_fridge = conn.read(spreadsheet=sheet_url, worksheet="Fridge", ttl=15).fillna('').astype(str)
+    df_vibe = conn.read(spreadsheet=sheet_url, worksheet="Vibe", ttl=15).fillna('').astype(str)
+    df_watch = conn.read(spreadsheet=sheet_url, worksheet="Watchlist", ttl=15).fillna('').astype(str)
+    df_bucket = conn.read(spreadsheet=sheet_url, worksheet="BucketList", ttl=15).fillna('').astype(str)
+    df_scores = conn.read(spreadsheet=sheet_url, worksheet="HighScores", ttl=15).fillna('').astype(str)
 except Exception as e:
-    st.error(f"Database sync error: {e}. Check your tab names (BucketList, HighScores, etc)!")
+    st.error(f"Database sync error: {e}. Check your tab names!")
     st.stop()
 
 # --- SIDEBAR NAVIGATION & LOGIN ---
@@ -227,7 +228,6 @@ elif page == "🕹️ The Arcade":
     st.title("The Arcade: Classic Snake")
     st.write("Use your keyboard arrows to play. When you're done, log your high score below!")
     
-    # Render HTML5 Snake Game
     components.html(
         """
         <!DOCTYPE html>
@@ -312,10 +312,8 @@ elif page == "🕹️ The Arcade":
 
     st.subheader("🏆 Leaderboard")
     if not df_scores.empty and df_scores['Score'].iloc[0] != '':
-        # Convert scores to numeric to sort them properly
         df_scores['Score'] = pd.to_numeric(df_scores['Score'], errors='coerce')
         sorted_scores = df_scores.sort_values(by="Score", ascending=False).head(5)
-        
         for idx, row in sorted_scores.iterrows():
             st.write(f"**{row['Player']}** - {row['Score']} pts *(on {row['Date']})*")
     else:
