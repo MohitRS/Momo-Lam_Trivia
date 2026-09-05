@@ -5,6 +5,7 @@ import datetime
 import pytz
 import plotly.express as px
 import random
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Lin & Mohit OS", page_icon="🤍", layout="wide")
 
@@ -31,8 +32,9 @@ try:
     df_vibe = conn.read(spreadsheet=sheet_url, worksheet="Vibe", ttl=0).fillna('').astype(str)
     df_watch = conn.read(spreadsheet=sheet_url, worksheet="Watchlist", ttl=0).fillna('').astype(str)
     df_bucket = conn.read(spreadsheet=sheet_url, worksheet="BucketList", ttl=0).fillna('').astype(str)
+    df_scores = conn.read(spreadsheet=sheet_url, worksheet="HighScores", ttl=0).fillna('').astype(str)
 except Exception as e:
-    st.error("Database sync error. Did you add the 'BucketList' tab to your Google Sheet?")
+    st.error(f"Database sync error: {e}. Check your tab names (BucketList, HighScores, etc)!")
     st.stop()
 
 # --- SIDEBAR NAVIGATION & LOGIN ---
@@ -47,7 +49,8 @@ with st.sidebar:
         "🎯 Trivia Arena",
         "🍿 Watchlist",
         "✈️ Bucket List",
-        "🎲 Date Roulette"
+        "🎲 Date Roulette",
+        "🕹️ The Arcade"
     ])
 
 if user == "Select...":
@@ -191,8 +194,6 @@ elif page == "🍿 Watchlist":
 # --- PAGE 6: BUCKET LIST ---
 elif page == "✈️ Bucket List":
     st.title("The Bucket List")
-    st.write("Plans for December and beyond.")
-    
     with st.form("new_bucket"):
         item = st.text_input("What are we doing?")
         loc = st.selectbox("Where?", ["Melbourne", "Guangzhou", "Virtual/Online", "Other"])
@@ -211,24 +212,111 @@ elif page == "✈️ Bucket List":
 # --- PAGE 7: DATE ROULETTE ---
 elif page == "🎲 Date Roulette":
     st.title("Date Night Roulette")
-    st.write("Can't decide what to do on FaceTime? Let the mainframe decide.")
-    
     if st.button("Spin the Wheel 🎡", use_container_width=True):
         st.markdown("---")
-        # Gather options
-        options = [
-            "Simultaneous matcha or coffee delivery.",
-            "Take a shared online personality test.",
-            "Screen-share a Wikipedia rabbit hole.",
-            "Virtual makeup tutorial (You try to follow her instructions).",
-            "Browse Sephora together and build a wishlist."
-        ]
-        
-        # Add un-watched movies to options
+        options = ["Simultaneous matcha delivery.", "Take a shared online personality test.", "Virtual makeup tutorial.", "Browse Sephora together and build a wishlist."]
         pending_movies = df_watch[df_watch['Status'] == 'Queued']['Title'].tolist()
         for movie in pending_movies:
             options.append(f"Watch: {movie}")
-            
         choice = random.choice(options)
         st.success(f"**The Mainframe has chosen:** {choice}")
         st.balloons()
+
+# --- PAGE 8: THE ARCADE ---
+elif page == "🕹️ The Arcade":
+    st.title("The Arcade: Classic Snake")
+    st.write("Use your keyboard arrows to play. When you're done, log your high score below!")
+    
+    # Render HTML5 Snake Game
+    components.html(
+        """
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { background: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
+            canvas { background: #1e1e1e; border: 2px solid #F4C2C2; border-radius: 8px; box-shadow: 0 0 10px rgba(244,194,194,0.3); }
+            #score { position: absolute; top: 10px; font-size: 20px; font-weight: bold; color: #F4C2C2;}
+          </style>
+        </head>
+        <body>
+          <div id="score">Score: 0</div>
+          <canvas width="400" height="400" id="game"></canvas>
+          <script>
+            var canvas = document.getElementById('game');
+            var context = canvas.getContext('2d');
+            var grid = 16;
+            var count = 0;
+            var score = 0;
+            var snake = { x: 160, y: 160, dx: grid, dy: 0, cells: [], maxCells: 4 };
+            var apple = { x: 320, y: 320 };
+            function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min)) + min; }
+            function loop() {
+              requestAnimationFrame(loop);
+              if (++count < 6) return;
+              count = 0;
+              context.clearRect(0,0,canvas.width,canvas.height);
+              snake.x += snake.dx; snake.y += snake.dy;
+              if (snake.x < 0) { snake.x = canvas.width - grid; } else if (snake.x >= canvas.width) { snake.x = 0; }
+              if (snake.y < 0) { snake.y = canvas.height - grid; } else if (snake.y >= canvas.height) { snake.y = 0; }
+              snake.cells.unshift({x: snake.x, y: snake.y});
+              if (snake.cells.length > snake.maxCells) { snake.cells.pop(); }
+              context.fillStyle = '#F4C2C2';
+              context.fillRect(apple.x, apple.y, grid-1, grid-1);
+              context.fillStyle = '#ffffff';
+              snake.cells.forEach(function(cell, index) {
+                context.fillRect(cell.x, cell.y, grid-1, grid-1);
+                if (cell.x === apple.x && cell.y === apple.y) {
+                  snake.maxCells++;
+                  score += 10;
+                  document.getElementById('score').innerText = 'Score: ' + score;
+                  apple.x = getRandomInt(0, 25) * grid; apple.y = getRandomInt(0, 25) * grid;
+                }
+                for (var i = index + 1; i < snake.cells.length; i++) {
+                  if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
+                    snake.x = 160; snake.y = 160; snake.cells = []; snake.maxCells = 4; snake.dx = grid; snake.dy = 0; score = 0;
+                    document.getElementById('score').innerText = 'Score: 0';
+                  }
+                }
+              });
+            }
+            document.addEventListener('keydown', function(e) {
+              if (e.which === 37 && snake.dx === 0) { snake.dx = -grid; snake.dy = 0; }
+              else if (e.which === 38 && snake.dy === 0) { snake.dy = -grid; snake.dx = 0; }
+              else if (e.which === 39 && snake.dx === 0) { snake.dx = grid; snake.dy = 0; }
+              else if (e.which === 40 && snake.dy === 0) { snake.dy = grid; snake.dx = 0; }
+            });
+            requestAnimationFrame(loop);
+          </script>
+        </body>
+        </html>
+        """,
+        height=450,
+    )
+    
+    st.markdown("---")
+    st.subheader("Log Your High Score")
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        new_score = st.number_input("What was your score?", min_value=0, step=10)
+    with col2:
+        st.write("<br>", unsafe_allow_html=True)
+        if st.button("Submit Score", use_container_width=True) and new_score > 0:
+            timestamp = current_time.strftime("%b %d")
+            new_log = pd.DataFrame([{'Game': 'Snake', 'Player': user, 'Score': str(new_score), 'Date': timestamp}])
+            df_scores = pd.concat([df_scores, new_log], ignore_index=True)
+            conn.update(spreadsheet=sheet_url, worksheet="HighScores", data=df_scores)
+            st.success("Score logged!")
+            st.balloons()
+            st.rerun()
+
+    st.subheader("🏆 Leaderboard")
+    if not df_scores.empty and df_scores['Score'].iloc[0] != '':
+        # Convert scores to numeric to sort them properly
+        df_scores['Score'] = pd.to_numeric(df_scores['Score'], errors='coerce')
+        sorted_scores = df_scores.sort_values(by="Score", ascending=False).head(5)
+        
+        for idx, row in sorted_scores.iterrows():
+            st.write(f"**{row['Player']}** - {row['Score']} pts *(on {row['Date']})*")
+    else:
+        st.write("No scores logged yet. Be the first to set the record!")
