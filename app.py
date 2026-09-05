@@ -14,11 +14,9 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600&family=Inter:wght@300;400;500;600&display=swap');
     
-    /* Clean, modern typography */
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; background-color: #0E1117; color: #FAFAFA; }
     h1, h2, h3 { font-family: 'Playfair Display', serif; color: #F4C2C2 !important; }
     
-    /* Premium Button Styling */
     .stButton>button { 
         background-color: transparent; border: 1px solid #F4C2C2; color: #F4C2C2; 
         border-radius: 12px; font-weight: 500; transition: all 0.3s ease; padding: 10px 24px;
@@ -27,12 +25,10 @@ st.markdown("""
         background-color: #F4C2C2; color: #0E1117; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(244, 194, 194, 0.2); 
     }
     
-    /* Input Fields */
     .stTextInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
         background-color: #1A1C23; border: 1px solid #2D303E; border-radius: 8px; color: white;
     }
     
-    /* Metric Cards */
     div[data-testid="metric-container"] {
         background-color: #1A1C23; border: 1px solid #2D303E; padding: 15px; border-radius: 12px;
     }
@@ -80,7 +76,6 @@ current_time = datetime.datetime.now(melb_tz if user == "Mohit 🎾" else gz_tz)
 # --- PAGE 1: DASHBOARD ---
 if page == "🏠 Dashboard":
     st.title(f"Welcome, {user.split()[0]}")
-    st.write("Here is your daily overview.")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -96,8 +91,7 @@ if page == "🏠 Dashboard":
         new_ping = pd.DataFrame([{'Author': 'SYSTEM', 'Message': f"*Ping: {user} is missing you.*", 'Timestamp': current_time.strftime("%b %d, %I:%M %p")}])
         conn.update(spreadsheet=sheet_url, worksheet="Fridge", data=pd.concat([new_ping, db['fridge']], ignore_index=True))
         st.cache_data.clear()
-        st.success("Ping delivered!")
-        st.balloons()
+        st.toast("Ping delivered! 💌", icon="🚀")
 
     st.markdown("---")
     st.subheader("Vibe Telemetry")
@@ -119,6 +113,7 @@ elif page == "💌 Digital Fridge":
             new_row = pd.DataFrame([{'Author': user, 'Message': new_msg, 'Timestamp': current_time.strftime("%b %d, %I:%M %p")}])
             conn.update(spreadsheet=sheet_url, worksheet="Fridge", data=pd.concat([new_row, db['fridge']], ignore_index=True))
             st.cache_data.clear()
+            st.toast("Note pinned to the fridge! 📌")
             st.rerun()
 
     for _, row in db['fridge'].iterrows():
@@ -138,7 +133,7 @@ elif page == "📊 Telemetry":
             new_vibe = pd.DataFrame([{'Date': current_time.strftime("%Y-%m-%d"), 'User': user, 'Mood': mood, 'Energy': energy, 'Miss_Level': miss}])
             conn.update(spreadsheet=sheet_url, worksheet="Vibe", data=pd.concat([db['vibe'], new_vibe], ignore_index=True))
             st.cache_data.clear()
-            st.success("Logged!")
+            st.toast("Telemetry logged successfully! 📡")
 
 # --- PAGE 4: TRIVIA ARENA ---
 elif page == "🎯 Trivia Arena":
@@ -161,6 +156,8 @@ elif page == "🎯 Trivia Arena":
                             db['trivia'].at[idx, 'Guesser'], db['trivia'].at[idx, 'Guessed_Answer'] = user, guess
                             conn.update(spreadsheet=sheet_url, worksheet="Trivia", data=db['trivia'])
                             st.cache_data.clear()
+                            st.toast("Point scored! 🎯")
+                            st.balloons()
                             st.rerun()
                         if c2.button("❌ Nope", key=f"w_{idx}", use_container_width=True):
                             db['trivia'].at[idx, 'Status'] = 'Incorrect'
@@ -176,6 +173,7 @@ elif page == "🎯 Trivia Arena":
                 new_row = pd.DataFrame([{'Creator': user, 'Question': new_q, 'Correct_Answer': new_a, 'Guesser': '', 'Guessed_Answer': '', 'Status': 'Unanswered'}])
                 conn.update(spreadsheet=sheet_url, worksheet="Trivia", data=pd.concat([db['trivia'], new_row], ignore_index=True))
                 st.cache_data.clear()
+                st.toast("Question sent! 📩")
                 st.rerun()
 
 # --- PAGE 5: WATCHLIST ---
@@ -187,6 +185,7 @@ elif page == "🍿 Watchlist":
             new_watch = pd.DataFrame([{'Title': new_title, 'Added_By': user, 'Status': 'Queued'}])
             conn.update(spreadsheet=sheet_url, worksheet="Watchlist", data=pd.concat([db['watch'], new_watch], ignore_index=True))
             st.cache_data.clear()
+            st.toast("Added to queue! 🍿")
             st.rerun()
             
     st.write("### Up Next")
@@ -210,6 +209,7 @@ elif page == "✈️ Bucket List":
             new_plan = pd.DataFrame([{'Item': item, 'Location': loc, 'Added_By': user, 'Status': 'Dreaming'}])
             conn.update(spreadsheet=sheet_url, worksheet="BucketList", data=pd.concat([db['bucket'], new_plan], ignore_index=True))
             st.cache_data.clear()
+            st.toast("Added to Bucket List! ✈️")
             st.rerun()
             
     st.write("### Our Plans")
@@ -229,28 +229,57 @@ elif page == "🎲 Date Roulette":
 # --- PAGE 8: THE ARCADE ---
 elif page == "🕹️ The Arcade":
     st.title("Classic Snake")
+    st.write("Desktop: Use arrow keys. Mobile: Tap the buttons below the game!")
     
+    # MOBILE-FRIENDLY SNAKE GAME WITH SCROLL FIX
     components.html(
         """
         <!DOCTYPE html>
         <html>
         <head>
           <style>
-            body { background: #0E1117; color: white; display: flex; justify-content: center; align-items: center; margin: 0; font-family: sans-serif; }
-            canvas { background: #1A1C23; border: 2px solid #2D303E; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+            body { background: #0E1117; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; margin: 0; font-family: sans-serif; }
+            canvas { background: #1A1C23; border: 2px solid #F4C2C2; border-radius: 8px; box-shadow: 0 4px 12px rgba(244,194,194,0.3); margin-top: 40px; }
             #score { position: absolute; top: 10px; font-size: 20px; font-weight: bold; color: #F4C2C2;}
+            .controls { display: grid; grid-template-columns: 60px 60px 60px; gap: 10px; margin-top: 20px; }
+            .btn { background: #2D303E; border: none; color: white; font-size: 24px; padding: 15px; border-radius: 8px; cursor: pointer; }
+            .btn:active { background: #F4C2C2; }
+            .up { grid-column: 2; } .left { grid-column: 1; grid-row: 2; } .down { grid-column: 2; grid-row: 2; } .right { grid-column: 3; grid-row: 2; }
           </style>
         </head>
         <body>
           <div id="score">Score: 0</div>
-          <canvas width="350" height="350" id="game"></canvas>
+          <canvas width="320" height="320" id="game"></canvas>
+          
+          <!-- MOBILE BUTTONS -->
+          <div class="controls">
+            <button class="btn up" onclick="setDir('up')">⬆️</button>
+            <button class="btn left" onclick="setDir('left')">⬅️</button>
+            <button class="btn down" onclick="setDir('down')">⬇️</button>
+            <button class="btn right" onclick="setDir('right')">➡️</button>
+          </div>
+
           <script>
             var canvas = document.getElementById('game');
             var context = canvas.getContext('2d');
             var grid = 16, count = 0, score = 0;
             var snake = { x: 160, y: 160, dx: grid, dy: 0, cells: [], maxCells: 4 };
-            var apple = { x: 320, y: 320 };
+            var apple = { x: 240, y: 240 };
+
+            // PREVENT SCREEN SCROLLING WITH ARROW KEYS
+            window.addEventListener("keydown", function(e) {
+                if([37, 38, 39, 40].indexOf(e.keyCode) > -1) { e.preventDefault(); }
+            }, false);
+
             function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min)) + min; }
+            
+            window.setDir = function(dir) {
+                if (dir === 'up' && snake.dy === 0) { snake.dy = -grid; snake.dx = 0; }
+                else if (dir === 'down' && snake.dy === 0) { snake.dy = grid; snake.dx = 0; }
+                else if (dir === 'left' && snake.dx === 0) { snake.dx = -grid; snake.dy = 0; }
+                else if (dir === 'right' && snake.dx === 0) { snake.dx = grid; snake.dy = 0; }
+            }
+
             function loop() {
               requestAnimationFrame(loop);
               if (++count < 6) return;
@@ -269,7 +298,7 @@ elif page == "🕹️ The Arcade":
                 if (cell.x === apple.x && cell.y === apple.y) {
                   snake.maxCells++; score += 10;
                   document.getElementById('score').innerText = 'Score: ' + score;
-                  apple.x = getRandomInt(0, 21) * grid; apple.y = getRandomInt(0, 21) * grid;
+                  apple.x = getRandomInt(0, 20) * grid; apple.y = getRandomInt(0, 20) * grid;
                 }
                 for (var i = index + 1; i < snake.cells.length; i++) {
                   if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
@@ -280,16 +309,16 @@ elif page == "🕹️ The Arcade":
               });
             }
             document.addEventListener('keydown', function(e) {
-              if (e.which === 37 && snake.dx === 0) { snake.dx = -grid; snake.dy = 0; }
-              else if (e.which === 38 && snake.dy === 0) { snake.dy = -grid; snake.dx = 0; }
-              else if (e.which === 39 && snake.dx === 0) { snake.dx = grid; snake.dy = 0; }
-              else if (e.which === 40 && snake.dy === 0) { snake.dy = grid; snake.dx = 0; }
+              if (e.which === 37) setDir('left');
+              else if (e.which === 38) setDir('up');
+              else if (e.which === 39) setDir('right');
+              else if (e.which === 40) setDir('down');
             });
             requestAnimationFrame(loop);
           </script>
         </body>
         </html>
-        """, height=400
+        """, height=500
     )
     
     with st.container(border=True):
@@ -299,7 +328,7 @@ elif page == "🕹️ The Arcade":
             new_log = pd.DataFrame([{'Game': 'Snake', 'Player': user, 'Score': str(new_score), 'Date': current_time.strftime("%b %d")}])
             conn.update(spreadsheet=sheet_url, worksheet="HighScores", data=pd.concat([db['scores'], new_log], ignore_index=True))
             st.cache_data.clear()
-            st.success("Logged!")
+            st.toast("High score logged! 🏆")
             st.rerun()
 
     st.write("### Leaderboard")
