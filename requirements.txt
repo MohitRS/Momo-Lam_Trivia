@@ -4,4 +4,3 @@ st-gsheets-connection
 pytz
 plotly
 plotly.express
-random
