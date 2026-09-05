@@ -10,26 +10,24 @@ st.markdown("""
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Poppins:wght@300;400;500&display=swap');
     html, body, [class*="css"] { font-family: 'Poppins', sans-serif; background-color: #121212; color: #EAEAEA; }
     h1, h2, h3 { font-family: 'Playfair Display', serif; color: #F4C2C2 !important; }
-    .stButton>button { background-color: transparent; border: 1px solid #F4C2C2; color: #F4C2C2; border-radius: 30px; }
-    .stButton>button:hover { background-color: #F4C2C2; color: #121212; }
+    .stButton>button { background-color: transparent; border: 1px solid #F4C2C2; color: #F4C2C2; border-radius: 8px; font-weight: 500; transition: 0.2s;}
+    .stButton>button:hover { background-color: #F4C2C2; color: #121212; border: 1px solid #F4C2C2; }
+    div[data-testid="stExpander"] { background-color: rgba(255,255,255,0.03); border: 1px solid rgba(244, 194, 194, 0.2); border-radius: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🤍 How Well Do You Know Us?")
 st.write("The transcontinental trivia battle. Werribee vs. Guangzhou.")
 
-# Connect to Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
-
-# Define the URL globally so all parts of the app can use it
 sheet_url = "https://docs.google.com/spreadsheets/d/17wg47-a_YxLoLs5dIN1us56qaK3s3CMVGNrr-FlEh6U/edit?gid=0#gid=0"
 
-# Read the data (ttl=0 ensures it doesn't cache, giving you real-time updates)
 try:
     df = conn.read(spreadsheet=sheet_url, worksheet="Trivia", ttl=0)
+    # BUG FIX: Force pandas to treat everything as strings so it doesn't crash on empty columns
+    df = df.fillna('').astype(str) 
 except Exception as e:
     st.error(f"Database error: {e}")
-    st.write("Tip: Make sure you shared the Google Sheet with your service account email as an Editor, and that the tab at the bottom is exactly named 'Trivia'!")
     st.stop()
 
 # --- USER LOGIN ---
@@ -37,65 +35,59 @@ user = st.radio("Who is playing right now?", ["Select...", "Mohit 🎾", "Lin �
 
 if user != "Select...":
     st.markdown("---")
-    tab1, tab2, tab3 = st.tabs(["🎯 Answer Questions", "🤔 Ask a Question", "🏆 Scoreboard"])
+    tab1, tab2, tab3 = st.tabs(["🎯 Play", "🤔 Create", "🏆 Scoreboard"])
     
     partner = "Lin 🍵" if user == "Mohit 🎾" else "Mohit 🎾"
 
-    # --- TAB 1: ANSWER QUESTIONS ---
+    # --- TAB 1: ANSWER QUESTIONS (UPGRADED) ---
     with tab1:
-        st.subheader(f"Questions from {partner}")
+        st.subheader(f"Waiting from {partner}")
         
-        # Find questions asked by partner that user hasn't answered yet
         pending_mask = (df['Creator'] == partner) & (df['Status'] == 'Unanswered')
         pending_questions = df[pending_mask]
         
         if pending_questions.empty:
-            st.write(f"You're all caught up! {partner} hasn't left any new questions for you yet.")
+            st.info(f"You're all caught up! {partner} hasn't left any new questions for you yet.")
         else:
             for index, row in pending_questions.iterrows():
-                with st.expander(f"Question: {row['Question']}"):
-                    guess = st.text_input("Your Answer:", key=f"guess_{index}")
+                with st.expander(f"Question: {row['Question']}", expanded=True):
+                    guess = st.text_input("Type your guess to reveal the answer:", key=f"guess_{index}")
                     
-                    if st.button("Submit Answer", key=f"btn_{index}"):
-                        # Very basic text matching (can be improved!)
-                        if guess.strip().lower() == str(row['Correct_Answer']).strip().lower():
-                            df.at[index, 'Status'] = 'Correct'
-                            st.success("Correct! 🎯")
-                            st.balloons()
-                        else:
-                            df.at[index, 'Status'] = 'Incorrect'
-                            st.error(f"Oh no! The correct answer was: {row['Correct_Answer']}")
+                    if guess:
+                        st.markdown(f"**Their Exact Answer:** `{row['Correct_Answer']}`")
+                        st.write("Were you close enough?")
                         
-                        df.at[index, 'Guesser'] = user
-                        df.at[index, 'Guessed_Answer'] = guess
-                        
-                        # Update Google Sheet (FIXED: Added spreadsheet parameter)
-                        conn.update(spreadsheet=sheet_url, worksheet="Trivia", data=df)
-                        st.rerun()
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            if st.button("✅ Nailed it", key=f"right_{index}", use_container_width=True):
+                                df.at[index, 'Status'] = 'Correct'
+                                df.at[index, 'Guesser'] = user
+                                df.at[index, 'Guessed_Answer'] = guess
+                                conn.update(spreadsheet=sheet_url, worksheet="Trivia", data=df)
+                                st.balloons()
+                                st.rerun()
+                        with c2:
+                            if st.button("❌ Not quite", key=f"wrong_{index}", use_container_width=True):
+                                df.at[index, 'Status'] = 'Incorrect'
+                                df.at[index, 'Guesser'] = user
+                                df.at[index, 'Guessed_Answer'] = guess
+                                conn.update(spreadsheet=sheet_url, worksheet="Trivia", data=df)
+                                st.rerun()
 
     # --- TAB 2: ASK A QUESTION ---
     with tab2:
         st.subheader("Stump your partner")
-        st.write("Ask a question about yourself, our relationship, or an inside joke.")
-        
         new_q = st.text_input("The Question:")
-        new_a = st.text_input("The Exact Answer (keep it short so it's easy to guess!):")
+        new_a = st.text_input("The Answer:")
         
-        if st.button("Send to Database"):
+        if st.button("Send to Database", use_container_width=True):
             if new_q and new_a:
                 new_row = pd.DataFrame([{
-                    'Creator': user,
-                    'Question': new_q,
-                    'Correct_Answer': new_a,
-                    'Guesser': '',
-                    'Guessed_Answer': '',
-                    'Status': 'Unanswered'
+                    'Creator': user, 'Question': new_q, 'Correct_Answer': new_a,
+                    'Guesser': '', 'Guessed_Answer': '', 'Status': 'Unanswered'
                 }])
                 df = pd.concat([df, new_row], ignore_index=True)
-                
-                # Update Google Sheet (FIXED: Added spreadsheet parameter)
                 conn.update(spreadsheet=sheet_url, worksheet="Trivia", data=df)
-                
                 st.success("Question submitted! It will be waiting for them next time they log in.")
                 st.rerun()
             else:
@@ -114,7 +106,6 @@ if user != "Select...":
         
         st.write("---")
         st.write("**Recent Activity:**")
-        # Show the last 5 answered questions
         history = df[df['Status'] != 'Unanswered'].tail(5)
         if history.empty:
             st.write("No questions answered yet. Make the first move!")
