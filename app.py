@@ -23,9 +23,11 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 # Read the data (ttl=0 ensures it doesn't cache, giving you real-time updates)
 try:
-    df = conn.read(worksheet="Trivia", ttl=0)
+    sheet_url = "https://docs.google.com/spreadsheets/d/17wg47-a_YxLoLs5dIN1us56qaK3s3CMVGNrr-FlEh6U/edit?gid=0#gid=0"
+    df = conn.read(spreadsheet=sheet_url, worksheet="Trivia", ttl=0)
 except Exception as e:
-    st.error("Waiting for database connection...")
+    st.error(f"Database error: {e}")
+    st.write("Tip: Make sure you shared the Google Sheet with your service account email as an Editor, and that the tab at the bottom is exactly named 'Trivia'!")
     st.stop()
 
 # --- USER LOGIN ---
@@ -109,6 +111,9 @@ if user != "Select...":
         st.write("**Recent Activity:**")
         # Show the last 5 answered questions
         history = df[df['Status'] != 'Unanswered'].tail(5)
-        for _, row in history.iterrows():
-            icon = "✅" if row['Status'] == 'Correct' else "❌"
-            st.write(f"{icon} **{row['Guesser']}** guessed '{row['Guessed_Answer']}' to '{row['Question']}'")
+        if history.empty:
+            st.write("No questions answered yet. Make the first move!")
+        else:
+            for _, row in history.iterrows():
+                icon = "✅" if row['Status'] == 'Correct' else "❌"
+                st.write(f"{icon} **{row['Guesser']}** guessed '{row['Guessed_Answer']}' to '{row['Question']}'")
